@@ -36,7 +36,7 @@ def my_threaded_function(q: queue.Queue):
             cur=initial_code
             q.put({"status": "running", "message": cur})
             print("Added new")
-        #time.sleep(0.1)
+            time.sleep(0.1)
     q.put({"status": "progress", "message": "56"})
     time.sleep(3) # Simulate more work
     q.put({"status": "completed", "message": "67"})
