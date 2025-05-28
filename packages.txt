@@ -1,5 +1,4 @@
 chromium
-chromium-driver
 google-chrome-stable
 libxslt-dev
 libxml2-dev
