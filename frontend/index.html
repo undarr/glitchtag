@@ -192,6 +192,7 @@
 
         if (p1Moved || p2Moved) {
             updategame();
+            notifyHost(((player1.x-1)*15+player1.y-1).toString());
             if (gameOver) return;
         }
     }
@@ -241,32 +242,6 @@
     _sendMessage(SET_COMPONENT_VALUE, {"value": data, dataType: "json"})
   }
 
-  function handleKeyPress(event) {
-    console.log(event.key);
-    if (event.key === 'w' || event.key === 'W') {
-      notifyHost("w");
-    } else if (event.key === 'a' || event.key === 'A') {
-      notifyHost("a");
-    } else if (event.key === 's' || event.key === 'S') {
-      notifyHost("s");
-    } else if (event.key === 'd' || event.key === 'D') {
-      notifyHost("d");
-    } else if (event.key === 'ArrowUp') {
-      event.preventDefault(); // Prevent default scrolling
-      notifyHost("w");
-    } else if (event.key === 'ArrowDown') {
-      event.preventDefault(); // Prevent default scrolling
-      notifyHost("s");
-    } else if (event.key === 'ArrowLeft') {
-      event.preventDefault(); // Prevent default scrolling
-      notifyHost("a");
-    } else if (event.key === 'ArrowRight') {
-      event.preventDefault(); // Prevent default scrolling
-      notifyHost("d");
-    }
-  }
-  window.addEventListener('keydown', handleKeyPress);
-
   function initialize() {
     gameBoard.style.width = `${GRID_SIZE * CELL_SIZE_PX}px`;
     gameBoard.style.height = `${GRID_SIZE * CELL_SIZE_PX}px`;
@@ -304,7 +279,7 @@
       }, 0)
     })
 
-    setInterval(() => {notifyHost(Date.now()); console.log(Date.now());},200);
+    setInterval(() => {notifyHost(null); console.log(Date.now());},500);
   }
   
   initialize()
