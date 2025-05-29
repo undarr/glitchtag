@@ -16,7 +16,7 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: 25px;
+        padding: 0px 25px 25px 25px;
         background-color: #ffffff;
         border-radius: 12px;
         box-shadow: 0 6px 20px rgba(0,0,0,0.08);
@@ -115,7 +115,20 @@
 
 
 <body>
-    <div class="game-container"><div id="game-board"></div></div>
+    <div class="game-container">
+        <p style="display: grid; grid-template-columns: 30% 30% auto; width: 100%; padding: 10px; border: 1px solid #ccc; align-items: center;">
+        <span style="white-space: nowrap;"> <!-- Room info will be in the first 30% column -->
+            <strong>Room:</strong> <span id="roomid">ABC</span>
+        </span>
+        <span style="white-space: nowrap;"> <!-- Role info will be in the second 30% column (starts at 30% mark) -->
+            <strong>Role:</strong> <span id="role">Hunter</span>
+        </span>
+        <span style="white-space: nowrap;"> <!-- Time info will be in the auto (remaining) column (starts at 60% mark) -->
+            <strong>Time:</strong> <span id="currentTime"></span>
+        </span>
+        </p>
+        <div id="game-board"></div>
+    </div>
 </body>
 
 <script type="text/javascript">
@@ -125,6 +138,8 @@
     
     let player1 = { x: 1, y: 1, id: 'player1', element: null, char: 'H' }; // Hunter
     let player2 = { x: GRID_SIZE, y: GRID_SIZE, id: 'player2', element: null, char: 'R' }; // Runner
+    let roomcode = false;
+    let player = 1;
     let gameOver = false;
 
     function createPlayerElement(id, char) {
@@ -164,45 +179,65 @@
 
     function handleKeyDown(event) {
         if (gameOver) return;
-
         let p1Moved = false;
         let p2Moved = false;
         let newP1Pos = { x: player1.x, y: player1.y };
         let newP2Pos = { x: player2.x, y: player2.y };
 
+        if (document.getElementById('role').textContent=="Hunter") {
         switch (event.key.toLowerCase()) {
-            case 'w': newP1Pos.y = Math.max(1, player1.y - 1); p1Moved = true; break;
-            case 's': newP1Pos.y = Math.min(GRID_SIZE, player1.y + 1); p1Moved = true; break;
-            case 'a': newP1Pos.x = Math.max(1, player1.x - 1); p1Moved = true; break;
-            case 'd': newP1Pos.x = Math.min(GRID_SIZE, player1.x + 1); p1Moved = true; break;
-            case 'arrowup': newP2Pos.y = Math.max(1, player2.y - 1); p2Moved = true; break;
-            case 'arrowdown': newP2Pos.y = Math.min(GRID_SIZE, player2.y + 1); p2Moved = true; break;
-            case 'arrowleft': newP2Pos.x = Math.max(1, player2.x - 1); p2Moved = true; break;
-            case 'arrowright': newP2Pos.x = Math.min(GRID_SIZE, player2.x + 1); p2Moved = true; break;
-        }
+            case 'w': newP1Pos.y = Math.max(1, player1.y - 1); break;
+            case 's': newP1Pos.y = Math.min(GRID_SIZE, player1.y + 1); break;
+            case 'a': newP1Pos.x = Math.max(1, player1.x - 1); break;
+            case 'd': newP1Pos.x = Math.min(GRID_SIZE, player1.x + 1); break;
+            case 'arrowup': newP1Pos.y = Math.max(1, player1.y - 1); break;
+            case 'arrowdown': newP1Pos.y = Math.min(GRID_SIZE, player1.y + 1); break;
+            case 'arrowleft': newP1Pos.x = Math.max(1, player1.x - 1); break;
+            case 'arrowright': newP1Pos.x = Math.min(GRID_SIZE, player1.x + 1); break;
+        }}
+        else {
+        switch (event.key.toLowerCase()) {
+            case 'w': newP2Pos.y = Math.max(1, player2.y - 1); break;
+            case 's': newP2Pos.y = Math.min(GRID_SIZE, player2.y + 1); break;
+            case 'a': newP2Pos.x = Math.max(1, player2.x - 1); break;
+            case 'd': newP2Pos.x = Math.min(GRID_SIZE, player2.x + 1); break;
+            case 'arrowup': newP2Pos.y = Math.max(1, player2.y - 1); break;
+            case 'arrowdown': newP2Pos.y = Math.min(GRID_SIZE, player2.y + 1); break;
+            case 'arrowleft': newP2Pos.x = Math.max(1, player2.x - 1); break;
+            case 'arrowright': newP2Pos.x = Math.min(GRID_SIZE, player2.x + 1); break;
+        }}
         
-        if (p1Moved && (newP1Pos.x !== player1.x || newP1Pos.y !== player1.y)) {
+        if (newP1Pos.x !== player1.x || newP1Pos.y !== player1.y) {
             player1.x = newP1Pos.x;
             player1.y = newP1Pos.y;
+            p1Moved = true;
         }
-        if (p2Moved && (newP2Pos.x !== player2.x || newP2Pos.y !== player2.y)) {
+        if (newP2Pos.x !== player2.x || newP2Pos.y !== player2.y) {
             player2.x = newP2Pos.x;
             player2.y = newP2Pos.y;
+            p2Moved = true;
         }
 
         if (p1Moved || p2Moved) {
             updategame();
-            notifyHost(((player1.x-1)*15+player1.y-1).toString());
+            updateTime();
+            notifyHost({"type":"move","loc":((player1.x-1)*15+player1.y-1).toString(),"time":Date.now()});
             if (gameOver) return;
         }
     }
 
-    function moveplayer2(px,py) {
-        player2.x = px;
-        player2.y = py;
-        updategame();
+    function moveplayer(px,py,r) {
+        if (r=="Hunter") {
+            player2.x = px;
+            player2.y = py;
+            updategame();
+        }
+        else {
+            player1.x = px;
+            player1.y = py;
+            updategame();
+        }
     }
-
 
     document.addEventListener('keydown', handleKeyDown);
 
@@ -215,8 +250,20 @@
   //    (this is optional, in case Streamlit doesn't correctly auto-set it)
   // 3. Pass values from component to Streamlit client
   //
-
   // Helper function to send type and data messages to Streamlit client
+  function updateTime() {
+        const now = new Date();
+        function pad(num, size) {
+            let s = "000" + num; // Max 3 digits for milliseconds, 2 for others
+            return s.substring(s.length - size);
+        }
+        const hours = pad(now.getHours(), 2);
+        const minutes = pad(now.getMinutes(), 2);
+        const seconds = pad(now.getSeconds(), 2);
+        const milliseconds = pad(now.getMilliseconds(), 3); // Milliseconds need 3 digits
+        const formattedTime = `${hours}:${minutes}:${seconds}:${milliseconds}`;
+        document.getElementById('currentTime').textContent = formattedTime;
+    }
 
   const SET_COMPONENT_VALUE = "streamlit:setComponentValue"
   const RENDER = "streamlit:render"
@@ -232,7 +279,6 @@
 
     if (type == SET_COMPONENT_VALUE) {
       console.log("_sendMessage data: " + JSON.stringify(data))
-      console.log("_sendMessage outboundData: " + JSON.stringify(outboundData))
     }
 
     window.parent.postMessage(outboundData, "*")
@@ -268,282 +314,21 @@
     window.addEventListener("message", (event) => {
         if (event.data.type == RENDER) {
             let props = event.data.args;
-            moveplayer2(Number(props.runner.x),Number(props.runner.y));
+            document.getElementById('roomid').textContent = props.rid;
+            document.getElementById('role').textContent = props.role;
+            if (props.epos!=="none") {
+            moveplayer(Number(props.epos.x),Number(props.epos.y),props.role);}
         }
     })
-
     _sendMessage(COMPONENT_READY, { apiVersion: 1 });
     window.addEventListener("load", () => {
       window.setTimeout(function () {
         _sendMessage(SET_FRAME_HEIGHT, { height: document.documentElement.clientHeight })
       }, 0)
     })
-
-    setInterval(() => {notifyHost(null); console.log(Date.now());},500);
+    updateTime();
+    setInterval(() => {updateTime(); notifyHost({"type":"heartbeat","time":Date.now()});},500);
   }
-  
   initialize()
-
 </script>
-
 </html>
-<!--
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grid Chase Game</title>
-    <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 95vh;
-            margin: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f7f6;
-            color: #333;
-        }
-        .game-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 25px;
-            background-color: #ffffff;
-            border-radius: 12px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.08);
-            border: 1px solid #e0e0e0;
-        }
-        #game-board {
-            display: grid;
-            /* GRID_SIZE and CELL_SIZE will be set by JS for width/height */
-            border: 3px solid #4a4a4a;
-            background-color: #f0f0f0;
-            position: relative; /* For positioning players */
-            background-image:
-                linear-gradient(to right, #d0d0d0 1px, transparent 1px),
-                linear-gradient(to bottom, #d0d0d0 1px, transparent 1px);
-            /* background-size will be set by JS */
-        }
-        .player {
-            width: 75%; /* Relative to cell size, allows grid lines to be seen */
-            height: 75%; /* Relative to cell size */
-            border-radius: 50%;
-            box-sizing: border-box;
-            position: absolute; /* Positioned relative to game-board */
-            transition: left 0.08s linear, top 0.08s linear; /* Faster, smoother movement */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-        #player1 { /* Hunter */
-            background-color: #ff6b6b; /* Vibrant Red */
-            border: 2px solid #c44d4d;
-            color: white;
-        }
-        #player2 { /* Runner */
-            background-color: #4db6ac; /* Tealish Blue */
-            border: 2px solid #3a8f86;
-            color: white;
-        }
-        #status-message {
-            margin-top: 20px;
-            font-size: 1.3em;
-            font-weight: 500;
-            color: #2c3e50;
-            min-height: 1.5em; /* Prevent layout shift */
-            text-align: center;
-        }
-        #reset-button {
-            margin-top: 20px;
-            padding: 12px 25px;
-            font-size: 1.05em;
-            color: white;
-            background-color: #5cb85c; /* Bootstrap Success Green */
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: background-color 0.2s ease-in-out, transform 0.1s ease;
-        }
-        #reset-button:hover {
-            background-color: #4cae4c; /* Darker Green */
-        }
-        #reset-button:active {
-            transform: scale(0.98);
-        }
-        .controls-info {
-            margin-top: 25px;
-            padding: 15px;
-            background-color: #f9f9f9;
-            border-radius: 8px;
-            border: 1px solid #eee;
-            font-size: 0.95em;
-            color: #555;
-            width: 100%;
-            max-width: 420px; /* Align with typical game board width */
-        }
-        .controls-info h4 {
-            margin-top: 0;
-            margin-bottom: 10px;
-            color: #333;
-            font-weight: 600;
-        }
-        .controls-info ul {
-            list-style: none;
-            padding-left: 0;
-            margin-bottom: 5px;
-        }
-        .controls-info li {
-            margin-bottom: 6px;
-            line-height: 1.4;
-        }
-        .controls-info strong {
-            color: #2c3e50;
-        }
-    </style>
-</head>
-<body>
-    <div class="game-container">
-        <div id="game-board">
-        </div>
-        <div id="status-message">Loading game...</div>
-        <button id="reset-button">Reset Game</button>
-        <div class="controls-info">
-            <h4>Game Controls & Goal</h4>
-            <ul>
-                <li><strong>Hunter (Red 'H'):</strong> Use <strong>W</strong> (Up), <strong>A</strong> (Left), <strong>S</strong> (Down), <strong>D</strong> (Right) keys to move.</li>
-                <li><strong>Runner (Teal 'R'):</strong> Use <strong>Arrow Keys</strong> (Up, Left, Down, Right) to move.</li>
-            </ul>
-            <p><strong>Objective:</strong> The <strong>Hunter</strong> must move to the same square as the <strong>Runner</strong> to win!</p>
-        </div>
-    </div>
-
-    <script>
-        const GRID_SIZE = 15; 
-        const CELL_SIZE_PX = 32; // Increased for better visibility
-
-        const gameBoard = document.getElementById('game-board');
-        const statusMessage = document.getElementById('status-message');
-        const resetButton = document.getElementById('reset-button');
-
-        let player1 = { x: 1, y: 1, id: 'player1', element: null, char: 'H' }; // Hunter
-        let player2 = { x: GRID_SIZE, y: GRID_SIZE, id: 'player2', element: null, char: 'R' }; // Runner
-        let gameOver = false;
-
-        function initializeGame() {
-            gameBoard.style.width = `${GRID_SIZE * CELL_SIZE_PX}px`;
-            gameBoard.style.height = `${GRID_SIZE * CELL_SIZE_PX}px`;
-            gameBoard.style.backgroundSize = `${CELL_SIZE_PX}px ${CELL_SIZE_PX}px`;
-
-            if (!player1.element) {
-                player1.element = createPlayerElement(player1.id, player1.char);
-                gameBoard.appendChild(player1.element);
-            }
-            if (!player2.element) {
-                player2.element = createPlayerElement(player2.id, player2.char);
-                gameBoard.appendChild(player2.element);
-            }
-            
-            resetGameValues();
-        }
-
-        function createPlayerElement(id, char) {
-            const el = document.createElement('div');
-            el.classList.add('player');
-            el.id = id;
-            el.textContent = char;
-            // Dynamic sizing of player character text
-            el.style.fontSize = `${CELL_SIZE_PX * 0.45}px`; 
-            return el;
-        }
-
-        function resetGameValues() {
-            player1.x = 1;
-            player1.y = 1;
-            player2.x = GRID_SIZE;
-            player2.y = GRID_SIZE;
-            gameOver = false;
-            statusMessage.textContent = "Game On! Hunter (WASD) starts.";
-            player1.element.style.backgroundColor = '#ff6b6b'; // Reset color if changed on win
-            player1.element.style.zIndex = '1';
-            player2.element.style.opacity = '1';
-            drawPlayers();
-        }
-
-        function drawPlayers() {
-            const playerOffset = (CELL_SIZE_PX * (1 - 0.75) / 2); // Center 75% player in cell
-
-            player1.element.style.left = `${(player1.x - 1) * CELL_SIZE_PX + playerOffset}px`;
-            player1.element.style.top = `${(player1.y - 1) * CELL_SIZE_PX + playerOffset}px`;
-            player1.element.style.width = `${CELL_SIZE_PX * 0.75}px`;
-            player1.element.style.height = `${CELL_SIZE_PX * 0.75}px`;
-
-            player2.element.style.left = `${(player2.x - 1) * CELL_SIZE_PX + playerOffset}px`;
-            player2.element.style.top = `${(player2.y - 1) * CELL_SIZE_PX + playerOffset}px`;
-            player2.element.style.width = `${CELL_SIZE_PX * 0.75}px`;
-            player2.element.style.height = `${CELL_SIZE_PX * 0.75}px`;
-        }
-
-        function handleKeyDown(event) {
-            if (gameOver) return;
-
-            let p1Moved = false;
-            let p2Moved = false;
-            let newP1Pos = { x: player1.x, y: player1.y };
-            let newP2Pos = { x: player2.x, y: player2.y };
-
-            switch (event.key.toLowerCase()) {
-                case 'w': newP1Pos.y = Math.max(1, player1.y - 1); p1Moved = true; break;
-                case 's': newP1Pos.y = Math.min(GRID_SIZE, player1.y + 1); p1Moved = true; break;
-                case 'a': newP1Pos.x = Math.max(1, player1.x - 1); p1Moved = true; break;
-                case 'd': newP1Pos.x = Math.min(GRID_SIZE, player1.x + 1); p1Moved = true; break;
-                case 'arrowup': newP2Pos.y = Math.max(1, player2.y - 1); p2Moved = true; break;
-                case 'arrowdown': newP2Pos.y = Math.min(GRID_SIZE, player2.y + 1); p2Moved = true; break;
-                case 'arrowleft': newP2Pos.x = Math.max(1, player2.x - 1); p2Moved = true; break;
-                case 'arrowright': newP2Pos.x = Math.min(GRID_SIZE, player2.x + 1); p2Moved = true; break;
-            }
-            
-            if (p1Moved && (newP1Pos.x !== player1.x || newP1Pos.y !== player1.y)) {
-                player1.x = newP1Pos.x;
-                player1.y = newP1Pos.y;
-            }
-            if (p2Moved && (newP2Pos.x !== player2.x || newP2Pos.y !== player2.y)) {
-                player2.x = newP2Pos.x;
-                player2.y = newP2Pos.y;
-            }
-
-            if (p1Moved || p2Moved) {
-                drawPlayers();
-                if (checkCollision()) return; // Stop if game over
-                
-                if (p1Moved && !p2Moved) statusMessage.textContent = "Runner's turn (Arrows)!";
-                else if (p2Moved && !p1Moved) statusMessage.textContent = "Hunter's turn (WASD)!";
-                else if (p1Moved && p2Moved) statusMessage.textContent = "Both moved!"; // Can happen if keys are pressed fast
-                else statusMessage.textContent = "Move within bounds!"; // No actual move due to boundary
-            }
-        }
-
-        function checkCollision() {
-            if (player1.x === player2.x && player1.y === player2.y) {
-                gameOver = true;
-                statusMessage.innerHTML = "<strong>Hunter (Red 'H') Wins!</strong> Game Over!";
-                player1.element.style.backgroundColor = '#f1c40f'; // Gold for winner
-                player1.element.style.borderColor = '#f39c12';
-                player1.element.style.zIndex = '10';
-                player2.element.style.opacity = '0.5'; // Fade out runner
-                return true;
-            }
-            return false;
-        }
-
-        resetButton.addEventListener('click', initializeGame); // Re-initialize to ensure clean state
-        document.addEventListener('keydown', handleKeyDown);
-
-        initializeGame(); // Initial setup
-    </script>
-</body>
-</html>
--->
