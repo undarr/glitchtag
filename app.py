@@ -52,6 +52,7 @@ def getcode(sq: queue.Queue, lq: queue.Queue, rid, role):
     code_mirror_editor_div = WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.CodeMirror")))
     print("GetDriverloaded","https://codeshare.io/ugt"+rid+erole)
     sq.put({"status": "showstat", "message": "Ready"})
+    cur=""
     gameon=True
     while gameon:
         initial_code = driver.execute_script("return arguments[0].CodeMirror.getValue();", code_mirror_editor_div)
@@ -63,6 +64,7 @@ def getcode(sq: queue.Queue, lq: queue.Queue, rid, role):
             message_from_thread = lq.get_nowait()
             if (message_from_thread["type"]=="disconnect"):
                 print(f"Disconnecting get thread: {message_from_thread}")
+                sq.put({"status": "showstat", "message": "Disconnected"})
                 driver.quit()
                 break
         except queue.Empty:
@@ -93,11 +95,13 @@ def setcode(sq: queue.Queue, lq: queue.Queue, rid, role):
         try:
             while (not lq.empty() and gameon):
                 message_from_thread = lq.get_nowait()
+                print(f"Main: Received from queue by big set thread: {message_from_thread}")
                 if (message_from_thread["type"]=="move"):
                     print(f"Main: Received from queue by thread: {message_from_thread}")
                     driver.execute_script("arguments[0].CodeMirror.setValue(arguments[1]);", code_mirror_editor_div, message_from_thread["loc"])
                 if (message_from_thread["type"]=="disconnect"):
-                    print(f"Disconnecting get thread: {message_from_thread}")
+                    print(f"Disconnecting set thread: {message_from_thread}")
+                    sq.put({"status": "showstat", "message": "Disconnected"})
                     driver.quit()
                     gameon=False
                     break
