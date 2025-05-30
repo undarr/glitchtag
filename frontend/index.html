@@ -143,6 +143,7 @@
             </span>
         </p>
     </div>
+    <p id="starttime"></p>
 </body>
 
 <script type="text/javascript">
@@ -152,9 +153,9 @@
     
     let player1 = { x: 1, y: 1, id: 'player1', element: null, char: 'H' }; // Hunter
     let player2 = { x: GRID_SIZE, y: GRID_SIZE, id: 'player2', element: null, char: 'R' }; // Runner
-    let roomcode = false;
-    let player = 1;
     let gameOver = false;
+    let mystep = [];
+    let lenstep = [];
 
     function createPlayerElement(id, char) {
         const el = document.createElement('div');
@@ -345,6 +346,7 @@
             document.getElementById('seturl').href = "https://codeshare.io/ugt"+props.rid+(props.role==="Hunter" ? "h" : "r");
             document.getElementById('sets').textContent = props.sets;
             document.getElementById('gets').textContent = props.gets;
+            document.getElementById('starttime').textContent = props.starttime;
             if (props.epos!=="none") {moveplayer(Number(props.epos.x),Number(props.epos.y),props.role);}
             if (props.gets=="Disconnected" && props.sets=="Disconnected") {clearInterval(intervalid);}
         }

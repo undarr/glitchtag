@@ -5,9 +5,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
 import threading
-import sys
 from frontend import fendfile
-from datetime import datetime
 import queue
 st.set_page_config(layout="wide")
 
@@ -19,6 +17,12 @@ if 'gets' not in st.session_state:
 
 if 'sets' not in st.session_state:
     st.session_state.sets = "Not Started"
+
+if 'starttime' not in st.session_state:
+    st.session_state.starttime = "0"
+
+if 'selfstarttime' not in st.session_state:
+    st.session_state.selfstarttime = "0"
 
 if 'thread_queuegl' not in st.session_state:
     st.session_state.thread_queuegl = queue.Queue()
@@ -62,6 +66,8 @@ def getcode(sq: queue.Queue, lq: queue.Queue, rid, role):
                 if initial_code in [str(i) for i in range(255)]:
                     cur=initial_code
                     sq.put({"status": "running", "message": cur})
+                if initial_code[:5] == "ready":
+                    sq.put({"status": "starttime", "message": initial_code.split()[1]})
             try:
                 message_from_thread = lq.get_nowait()
                 print(f"Main: Received from queue by get thread: {message_from_thread}")
@@ -101,22 +107,24 @@ def setcode(sq: queue.Queue, lq: queue.Queue, rid, role):
         code_mirror_editor_div = WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.CodeMirror")))
         print("SetDriverloaded","https://codeshare.io/ugt"+rid+roleshort)
         sq.put({"status": "showstat", "message": "Ready"})
+        starttime=str(int(time.time() * 1000))
+        driver.execute_script("arguments[0].CodeMirror.setValue(arguments[1]);", code_mirror_editor_div, "ready "+starttime)
+        sq.put({"status": "starttime", "message": starttime})
         lastheartbeat=int(time.time() * 1000)
         gameon=True
         while gameon:
             try:
-                while gameon:
-                    message_from_thread = lq.get_nowait()
-                    print(f"Main: Received from queue by big set thread: {message_from_thread}")
-                    lastheartbeat=int(message_from_thread["time"])
-                    if (message_from_thread["type"]=="move"):
-                        driver.execute_script("arguments[0].CodeMirror.setValue(arguments[1]);", code_mirror_editor_div, message_from_thread["loc"])
-                    if (message_from_thread["type"]=="disconnect"):
-                        print(f"Disconnecting set thread: {message_from_thread}")
-                        sq.put({"status": "showstat", "message": "Disconnected"})
-                        driver.quit()
-                        gameon=False
-                        return
+                message_from_thread = lq.get_nowait()
+                print(f"Main: Received from queue by big set thread: {message_from_thread}")
+                lastheartbeat=int(message_from_thread["time"])
+                if (message_from_thread["type"]=="move"):
+                    driver.execute_script("arguments[0].CodeMirror.setValue(arguments[1]);", code_mirror_editor_div, message_from_thread["loc"])
+                if (message_from_thread["type"]=="disconnect"):
+                    print(f"Disconnecting set thread: {message_from_thread}")
+                    sq.put({"status": "showstat", "message": "Disconnected"})
+                    driver.quit()
+                    gameon=False
+                    return
             except queue.Empty:
                 if (int(time.time() * 1000)-lastheartbeat>5000):
                     print("Heartbeat Timeout Disconnect Set")
@@ -128,21 +136,26 @@ def setcode(sq: queue.Queue, lq: queue.Queue, rid, role):
 
 def pqget():
     try:
-        while not st.session_state.thread_queuegs.empty():
+        while not st.session_state.thread_queuegs.empty(): #get
             message_from_thread = st.session_state.thread_queuegs.get_nowait()
             print(f"Main: Received from get queue: {message_from_thread}")
             if message_from_thread["status"]=="running":
                 st.session_state.receiveXY = message_from_thread["message"]
             elif message_from_thread["status"]=="showstat":
                 st.session_state.gets = message_from_thread["message"]
+            elif message_from_thread["status"]=="starttime":
+                if (st.session_state.selfstarttime!="0"):
+                    st.session_state.starttime = str(max(int(message_from_thread["message"]),int(st.session_state.selfstarttime))+5000)
     except queue.Empty:
         pass
     try:
-        while not st.session_state.thread_queuess.empty():
+        while not st.session_state.thread_queuess.empty(): #set
             message_from_thread = st.session_state.thread_queuess.get_nowait()
             print(f"Main: Received from set queue: {message_from_thread}")
             if message_from_thread["status"]=="showstat":
                 st.session_state.sets = message_from_thread["message"]
+            elif message_from_thread["status"]=="starttime":
+                st.session_state.selfstarttime = message_from_thread["message"]
     except queue.Empty:
         pass
 
@@ -205,7 +218,8 @@ else:
         thread2 = threading.Thread(target=setcode, args=(st.session_state.thread_queuess, st.session_state.thread_queuesl,st.session_state.room_code,st.session_state.role))
         thread2.start()
     pqget()
-    props = {'epos': toXY(st.session_state.receiveXY) if st.session_state.receiveXY!="none" else "none", 'rid': st.session_state.room_code, 'role':st.session_state.role, "sets": st.session_state.sets, "gets": st.session_state.gets}
+    props = {'epos': toXY(st.session_state.receiveXY) if st.session_state.receiveXY!="none" else "none", 'rid': st.session_state.room_code,
+             'role':st.session_state.role, "sets": st.session_state.sets, "gets": st.session_state.gets, "starttime": st.session_state.starttime}
     value = fendfile(**props,key="123")
     pqset(value)
     st.write('Received from component: ', value)
