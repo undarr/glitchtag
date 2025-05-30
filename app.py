@@ -84,8 +84,8 @@ def setcode(sq: queue.Queue, lq: queue.Queue, rid, role):
     options.add_argument("--disable-features=VizDisplayCompositor")
     options.add_argument("--window-size=640,480")
     driver = webdriver.Chrome(options=options)
-    driver.get("https://codeshare.io/ugt"+rid+roleshort)p
-    code_mirror_editor_div = WebDriverWait(driver, 15).until(EC.resence_of_element_located((By.CSS_SELECTOR, "div.CodeMirror")))
+    driver.get("https://codeshare.io/ugt"+rid+roleshort)
+    code_mirror_editor_div = WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.CodeMirror")))
     print("SetDriverloaded","https://codeshare.io/ugt"+rid+roleshort)
     sq.put({"status": "showstat", "message": "Ready"})
     gameon=True
@@ -127,8 +127,8 @@ def pqget():
 def pqset(value):
     if value is not None:
         st.session_state.thread_queuesl.put(value)
-    if (value["type"]=="disconnect"):
-        st.session_state.thread_queuegl.put(value)
+        if (value["type"]=="disconnect"):
+            st.session_state.thread_queuegl.put(value)
 
 def toXY(stri):
     return({"x": str(int(stri)//15+1),"y": str(int(stri)%15+1)})
@@ -183,11 +183,8 @@ else:
         thread.start()
         thread2 = threading.Thread(target=setcode, args=(st.session_state.thread_queuess, st.session_state.thread_queuesl,st.session_state.room_code,st.session_state.role))
         thread2.start()
-    pqlistenstat()
     pqget()
-    props = {'epos': toXY(st.session_state.receiveXY) if st.session_state.receiveXY!="none" else "none", 'rid': st.session_state.room_code, 'role':st.session_state.role,
-    "sets": st.session_state.sets, "gets": st.session_state.gets}
+    props = {'epos': toXY(st.session_state.receiveXY) if st.session_state.receiveXY!="none" else "none", 'rid': st.session_state.room_code, 'role':st.session_state.role, "sets": st.session_state.sets, "gets": st.session_state.gets}
     value = fendfile(**props,key="123")
     pqset(value)
     st.write('Received from component: ', value)
-    if st.form_submit_button("Join Room"):

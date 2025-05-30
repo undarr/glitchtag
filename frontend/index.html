@@ -133,10 +133,10 @@
                 <strong>Get:</strong> <span id="geturl">codeshare.io/ugtabcdeh</span>
             </span>
             <span style="white-space: nowrap;"> <!-- Role info will be in the second 30% column (starts at 30% mark) -->
-                <strong>Set:</strong> <span id="gets">codeshare.io/ugtabcder</span>
+                <strong>Set:</strong> <span id="seturl">codeshare.io/ugtabcder</span>
             </span>
             <span style="white-space: nowrap;"> <!-- Room info will be in the first 30% column -->
-                <strong>Status:</strong> <span id="seturl">Connecting...</span>
+                <strong>Status:</strong> <span id="gets">Connecting...</span>
             </span>
             <span style="white-space: nowrap;"> <!-- Role info will be in the second 30% column (starts at 30% mark) -->
                 <strong>Status:</strong> <span id="sets">Connecting...</span>
@@ -305,10 +305,6 @@
   }
 
   function initialize() {
-    document.getElementById('roomid').textContent = props.rid;
-    document.getElementById('role').textContent = props.role;
-    document.getElementById('geturl').textContent = "codeshare.io"+props.role;
-    document.getElementById('seturl').textContent = "codeshare.io"+props.role;
     gameBoard.style.width = `${GRID_SIZE * CELL_SIZE_PX}px`;
     gameBoard.style.height = `${GRID_SIZE * CELL_SIZE_PX}px`;
     gameBoard.style.backgroundSize = `${CELL_SIZE_PX}px ${CELL_SIZE_PX}px`;
@@ -333,6 +329,10 @@
     window.addEventListener("message", (event) => {
         if (event.data.type == RENDER) {
             let props = event.data.args;
+            document.getElementById('roomid').textContent = props.rid;
+            document.getElementById('role').textContent = props.role;
+            document.getElementById('geturl').textContent = "codeshare.io"+props.role;
+            document.getElementById('seturl').textContent = "codeshare.io"+props.role;
             document.getElementById('sets').textContent = props.sets;
             document.getElementById('gets').textContent = props.gets;
             if (props.epos!=="none") {
@@ -346,7 +346,7 @@
       }, 0)
     })
     updateTime();
-    setInterval(() => {updateTime(); notifyHost({"type":"heartbeat","time":Date.now()});},500);
+    //setInterval(() => {updateTime(); notifyHost({"type":"heartbeat","time":Date.now()});},500);
   }
   initialize()
 </script>
