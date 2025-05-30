@@ -188,12 +188,10 @@
             player1.element.style.borderColor = '#f39c12';
             player1.element.style.zIndex = '10';
             player2.element.style.opacity = '0.5'; // Fade out runner
-            notifyHost({"type":"disconnect"})
         }
     }
 
     function handleKeyDown(event) {
-        
         if (gameOver) return;
         let p1Moved = false;
         let p2Moved = false;

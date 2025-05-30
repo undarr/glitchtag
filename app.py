@@ -33,80 +33,98 @@ if 'thread_queuess' not in st.session_state:
     st.session_state.thread_queuess = queue.Queue()
 
 def getcode(sq: queue.Queue, lq: queue.Queue, rid, role):
-    erole = "r" if role[0]=="H" else "h"
-    sq.put({"status": "showstat", "message": "Connecting"})
-    print("GettingDriverloaded","https://codeshare.io/ugt"+rid+erole)
-    options = webdriver.ChromeOptions()
-    options.add_argument("--headless")
-    options.add_argument("--log-level=3")
-    #options.add_argument("--disable-gpu")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-extensions")
-    options.add_argument("--disable-infobars")
-    options.add_argument("--disable-browser-side-navigation")
-    options.add_argument("--disable-features=VizDisplayCompositor")
-    options.add_argument("--window-size=640,480")
-    driver = webdriver.Chrome(options=options)
-    driver.get("https://codeshare.io/ugt"+rid+erole)
-    code_mirror_editor_div = WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.CodeMirror")))
-    print("GetDriverloaded","https://codeshare.io/ugt"+rid+erole)
-    sq.put({"status": "showstat", "message": "Ready"})
-    cur=""
-    gameon=True
-    while gameon:
-        initial_code = driver.execute_script("return arguments[0].CodeMirror.getValue();", code_mirror_editor_div)
-        if (initial_code!=cur):
-            if initial_code in [str(i) for i in range(255)]:
-                cur=initial_code
-                sq.put({"status": "running", "message": cur})
-        try:
-            message_from_thread = lq.get_nowait()
-            if (message_from_thread["type"]=="disconnect"):
-                print(f"Disconnecting get thread: {message_from_thread}")
-                sq.put({"status": "showstat", "message": "Disconnected"})
-                driver.quit()
-                break
-        except queue.Empty:
-            pass
-
-def setcode(sq: queue.Queue, lq: queue.Queue, rid, role):
-    roleshort = "h" if role[0]=="H" else "r"
-    print("SettingDriverloaded","https://codeshare.io/ugt"+rid+roleshort)
-    sq.put({"status": "showstat", "message": "Connecting"})
-    options = webdriver.ChromeOptions()
-    options.add_argument("--headless")  # Optional: run headless
-    options.add_argument("--log-level=3")
-    #options.add_argument("--disable-gpu")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-extensions")
-    options.add_argument("--disable-infobars")
-    options.add_argument("--disable-browser-side-navigation")
-    options.add_argument("--disable-features=VizDisplayCompositor")
-    options.add_argument("--window-size=640,480")
-    driver = webdriver.Chrome(options=options)
-    driver.get("https://codeshare.io/ugt"+rid+roleshort)
-    code_mirror_editor_div = WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.CodeMirror")))
-    print("SetDriverloaded","https://codeshare.io/ugt"+rid+roleshort)
-    sq.put({"status": "showstat", "message": "Ready"})
-    gameon=True
-    while gameon:
-        try:
-            while (not lq.empty() and gameon):
+    try:
+        erole = "r" if role[0]=="H" else "h"
+        sq.put({"status": "showstat", "message": "Connecting"})
+        print("GettingDriverloaded","https://codeshare.io/ugt"+rid+erole)
+        options = webdriver.ChromeOptions()
+        options.add_argument("--headless")
+        options.add_argument("--log-level=3")
+        #options.add_argument("--disable-gpu")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-extensions")
+        options.add_argument("--disable-infobars")
+        options.add_argument("--disable-browser-side-navigation")
+        options.add_argument("--disable-features=VizDisplayCompositor")
+        options.add_argument("--window-size=640,480")
+        driver = webdriver.Chrome(options=options)
+        driver.get("https://codeshare.io/ugt"+rid+erole)
+        code_mirror_editor_div = WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.CodeMirror")))
+        print("GetDriverloaded","https://codeshare.io/ugt"+rid+erole)
+        sq.put({"status": "showstat", "message": "Ready"})
+        cur=""
+        lastheartbeat=int(time.time() * 1000)
+        gameon=True
+        while gameon:
+            initial_code = driver.execute_script("return arguments[0].CodeMirror.getValue();", code_mirror_editor_div)
+            if (initial_code!=cur):
+                if initial_code in [str(i) for i in range(255)]:
+                    cur=initial_code
+                    sq.put({"status": "running", "message": cur})
+            try:
                 message_from_thread = lq.get_nowait()
-                print(f"Main: Received from queue by big set thread: {message_from_thread}")
-                if (message_from_thread["type"]=="move"):
-                    print(f"Main: Received from queue by thread: {message_from_thread}")
-                    driver.execute_script("arguments[0].CodeMirror.setValue(arguments[1]);", code_mirror_editor_div, message_from_thread["loc"])
+                print(f"Main: Received from queue by get thread: {message_from_thread}")
+                lastheartbeat=int(message_from_thread["time"])
                 if (message_from_thread["type"]=="disconnect"):
-                    print(f"Disconnecting set thread: {message_from_thread}")
+                    print(f"Disconnecting get thread: {message_from_thread}")
                     sq.put({"status": "showstat", "message": "Disconnected"})
                     driver.quit()
-                    gameon=False
-                    break
-        except queue.Empty:
-            pass
+                    return
+            except queue.Empty:
+                if (int(time.time() * 1000)-lastheartbeat>5000):
+                    print("Heartbeat Timeout Disconnect Get")
+                    if driver is not None: driver.quit()
+                    return
+    except:
+        print("Force disconnect get")
+        if driver is not None: driver.quit()
+
+def setcode(sq: queue.Queue, lq: queue.Queue, rid, role):
+    try:
+        roleshort = "h" if role[0]=="H" else "r"
+        print("SettingDriverloaded","https://codeshare.io/ugt"+rid+roleshort)
+        sq.put({"status": "showstat", "message": "Connecting"})
+        options = webdriver.ChromeOptions()
+        options.add_argument("--headless")  # Optional: run headless
+        options.add_argument("--log-level=3")
+        #options.add_argument("--disable-gpu")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-extensions")
+        options.add_argument("--disable-infobars")
+        options.add_argument("--disable-browser-side-navigation")
+        options.add_argument("--disable-features=VizDisplayCompositor")
+        options.add_argument("--window-size=640,480")
+        driver = webdriver.Chrome(options=options)
+        driver.get("https://codeshare.io/ugt"+rid+roleshort)
+        code_mirror_editor_div = WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.CodeMirror")))
+        print("SetDriverloaded","https://codeshare.io/ugt"+rid+roleshort)
+        sq.put({"status": "showstat", "message": "Ready"})
+        lastheartbeat=int(time.time() * 1000)
+        gameon=True
+        while gameon:
+            try:
+                while gameon:
+                    message_from_thread = lq.get_nowait()
+                    print(f"Main: Received from queue by big set thread: {message_from_thread}")
+                    lastheartbeat=int(message_from_thread["time"])
+                    if (message_from_thread["type"]=="move"):
+                        driver.execute_script("arguments[0].CodeMirror.setValue(arguments[1]);", code_mirror_editor_div, message_from_thread["loc"])
+                    if (message_from_thread["type"]=="disconnect"):
+                        print(f"Disconnecting set thread: {message_from_thread}")
+                        sq.put({"status": "showstat", "message": "Disconnected"})
+                        driver.quit()
+                        gameon=False
+                        return
+            except queue.Empty:
+                if (int(time.time() * 1000)-lastheartbeat>5000):
+                    print("Heartbeat Timeout Disconnect Set")
+                    if driver is not None: driver.quit()
+                    return
+    except:
+        print("Force disconnect set")
+        if driver is not None: driver.quit()
 
 def pqget():
     try:
@@ -131,8 +149,7 @@ def pqget():
 def pqset(value):
     if value is not None:
         st.session_state.thread_queuesl.put(value)
-        if (value["type"]=="disconnect"):
-            st.session_state.thread_queuegl.put(value)
+        st.session_state.thread_queuegl.put(value)
 
 def toXY(stri):
     return({"x": str(int(stri)//15+1),"y": str(int(stri)%15+1)})
