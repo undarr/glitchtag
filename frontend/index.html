@@ -16,7 +16,7 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: 0px 25px 25px 25px;
+        padding: 0px 25px 0px 25px;
         background-color: #ffffff;
         border-radius: 12px;
         box-shadow: 0 6px 20px rgba(0,0,0,0.08);
@@ -128,6 +128,20 @@
         </span>
         </p>
         <div id="game-board"></div>
+        <p style="display: grid; grid-template-columns: 50% auto; width: 100%; padding: 10px; border: 1px solid #ccc; align-items: center;">
+            <span style="white-space: nowrap;"> <!-- Room info will be in the first 30% column -->
+                <strong>Get:</strong> <span id="geturl">codeshare.io/ugtabcdeh</span>
+            </span>
+            <span style="white-space: nowrap;"> <!-- Role info will be in the second 30% column (starts at 30% mark) -->
+                <strong>Set:</strong> <span id="gets">codeshare.io/ugtabcder</span>
+            </span>
+            <span style="white-space: nowrap;"> <!-- Room info will be in the first 30% column -->
+                <strong>Status:</strong> <span id="seturl">Connecting...</span>
+            </span>
+            <span style="white-space: nowrap;"> <!-- Role info will be in the second 30% column (starts at 30% mark) -->
+                <strong>Status:</strong> <span id="sets">Connecting...</span>
+            </span>
+        </p>
     </div>
 </body>
 
@@ -174,6 +188,7 @@
             player1.element.style.borderColor = '#f39c12';
             player1.element.style.zIndex = '10';
             player2.element.style.opacity = '0.5'; // Fade out runner
+            notifyHost({"type":"disconnect"})
         }
     }
 
@@ -221,7 +236,8 @@
         if (p1Moved || p2Moved) {
             updategame();
             updateTime();
-            notifyHost({"type":"move","loc":((player1.x-1)*15+player1.y-1).toString(),"time":Date.now()});
+            if (document.getElementById('role').textContent=="Hunter") {notifyHost({"type":"move","loc":((player1.x-1)*15+player1.y-1).toString(),"time":Date.now()});}
+            else {notifyHost({"type":"move","loc":((player2.x-1)*15+player2.y-1).toString(),"time":Date.now()});}
             if (gameOver) return;
         }
     }
@@ -289,6 +305,10 @@
   }
 
   function initialize() {
+    document.getElementById('roomid').textContent = props.rid;
+    document.getElementById('role').textContent = props.role;
+    document.getElementById('geturl').textContent = "codeshare.io"+props.role;
+    document.getElementById('seturl').textContent = "codeshare.io"+props.role;
     gameBoard.style.width = `${GRID_SIZE * CELL_SIZE_PX}px`;
     gameBoard.style.height = `${GRID_SIZE * CELL_SIZE_PX}px`;
     gameBoard.style.backgroundSize = `${CELL_SIZE_PX}px ${CELL_SIZE_PX}px`;
@@ -310,12 +330,11 @@
     player1.element.style.zIndex = '1';
     player2.element.style.opacity = '1';
     drawPlayers();
-
     window.addEventListener("message", (event) => {
         if (event.data.type == RENDER) {
             let props = event.data.args;
-            document.getElementById('roomid').textContent = props.rid;
-            document.getElementById('role').textContent = props.role;
+            document.getElementById('sets').textContent = props.sets;
+            document.getElementById('gets').textContent = props.gets;
             if (props.epos!=="none") {
             moveplayer(Number(props.epos.x),Number(props.epos.y),props.role);}
         }

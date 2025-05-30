@@ -14,14 +14,27 @@ st.set_page_config(layout="wide")
 if 'receiveXY' not in st.session_state:
     st.session_state.receiveXY = "none"
 
-if 'thread_queue' not in st.session_state:
-    st.session_state.thread_queue = queue.Queue()
+if 'gets' not in st.session_state:
+    st.session_state.gets = "Not Started"
 
-if 'thread_queue2' not in st.session_state:
-    st.session_state.thread_queue2 = queue.Queue()
+if 'sets' not in st.session_state:
+    st.session_state.sets = "Not Started"
 
-def getcode(q: queue.Queue, rid, role):
+if 'thread_queuegl' not in st.session_state:
+    st.session_state.thread_queuegl = queue.Queue()
+
+if 'thread_queuegs' not in st.session_state:
+    st.session_state.thread_queuegs = queue.Queue()
+
+if 'thread_queuesl' not in st.session_state:
+    st.session_state.thread_queuesl = queue.Queue()
+
+if 'thread_queuess' not in st.session_state:
+    st.session_state.thread_queuess = queue.Queue()
+
+def getcode(sq: queue.Queue, lq: queue.Queue, rid, role):
     erole = "r" if role[0]=="H" else "h"
+    sq.put({"status": "showstat", "message": "Connecting"})
     print("GettingDriverloaded","https://codeshare.io/ugt"+rid+erole)
     options = webdriver.ChromeOptions()
     options.add_argument("--headless")
@@ -38,17 +51,27 @@ def getcode(q: queue.Queue, rid, role):
     driver.get("https://codeshare.io/ugt"+rid+erole)
     code_mirror_editor_div = WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.CodeMirror")))
     print("GetDriverloaded","https://codeshare.io/ugt"+rid+erole)
-    cur=""
-    while True:
+    sq.put({"status": "showstat", "message": "Ready"})
+    gameon=True
+    while gameon:
         initial_code = driver.execute_script("return arguments[0].CodeMirror.getValue();", code_mirror_editor_div)
         if (initial_code!=cur):
             if initial_code in [str(i) for i in range(255)]:
                 cur=initial_code
-                q.put({"status": "running", "message": cur})
+                sq.put({"status": "running", "message": cur})
+        try:
+            message_from_thread = lq.get_nowait()
+            if (message_from_thread["type"]=="disconnect"):
+                print(f"Disconnecting get thread: {message_from_thread}")
+                driver.quit()
+                break
+        except queue.Empty:
+            pass
 
-def setcode(q: queue.Queue, rid, role):
+def setcode(sq: queue.Queue, lq: queue.Queue, rid, role):
     roleshort = "h" if role[0]=="H" else "r"
     print("SettingDriverloaded","https://codeshare.io/ugt"+rid+roleshort)
+    sq.put({"status": "showstat", "message": "Connecting"})
     options = webdriver.ChromeOptions()
     options.add_argument("--headless")  # Optional: run headless
     options.add_argument("--log-level=3")
@@ -61,31 +84,51 @@ def setcode(q: queue.Queue, rid, role):
     options.add_argument("--disable-features=VizDisplayCompositor")
     options.add_argument("--window-size=640,480")
     driver = webdriver.Chrome(options=options)
-    driver.get("https://codeshare.io/ugt"+rid+roleshort)
-    code_mirror_editor_div = WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.CodeMirror")))
+    driver.get("https://codeshare.io/ugt"+rid+roleshort)p
+    code_mirror_editor_div = WebDriverWait(driver, 15).until(EC.resence_of_element_located((By.CSS_SELECTOR, "div.CodeMirror")))
     print("SetDriverloaded","https://codeshare.io/ugt"+rid+roleshort)
-    while True:
+    sq.put({"status": "showstat", "message": "Ready"})
+    gameon=True
+    while gameon:
         try:
-            while not q.empty():
-                message_from_thread = q.get_nowait()
+            while (not lq.empty() and gameon):
+                message_from_thread = lq.get_nowait()
                 if (message_from_thread["type"]=="move"):
                     print(f"Main: Received from queue by thread: {message_from_thread}")
                     driver.execute_script("arguments[0].CodeMirror.setValue(arguments[1]);", code_mirror_editor_div, message_from_thread["loc"])
+                if (message_from_thread["type"]=="disconnect"):
+                    print(f"Disconnecting get thread: {message_from_thread}")
+                    driver.quit()
+                    gameon=False
+                    break
         except queue.Empty:
             pass
 
 def pqget():
     try:
-        while not st.session_state.thread_queue.empty():
-            message_from_thread = st.session_state.thread_queue.get_nowait()
-            print(f"Main: Received from queue: {message_from_thread}")
-            st.session_state.receiveXY = message_from_thread["message"]
+        while not st.session_state.thread_queuegs.empty():
+            message_from_thread = st.session_state.thread_queuegs.get_nowait()
+            print(f"Main: Received from get queue: {message_from_thread}")
+            if message_from_thread["status"]=="running":
+                st.session_state.receiveXY = message_from_thread["message"]
+            elif message_from_thread["status"]=="showstat":
+                st.session_state.gets = message_from_thread["message"]
+    except queue.Empty:
+        pass
+    try:
+        while not st.session_state.thread_queuess.empty():
+            message_from_thread = st.session_state.thread_queuess.get_nowait()
+            print(f"Main: Received from set queue: {message_from_thread}")
+            if message_from_thread["status"]=="showstat":
+                st.session_state.sets = message_from_thread["message"]
     except queue.Empty:
         pass
 
 def pqset(value):
     if value is not None:
-        st.session_state.thread_queue2.put(value)
+        st.session_state.thread_queuesl.put(value)
+    if (value["type"]=="disconnect"):
+        st.session_state.thread_queuegl.put(value)
 
 def toXY(stri):
     return({"x": str(int(stri)//15+1),"y": str(int(stri)%15+1)})
@@ -136,12 +179,15 @@ if not st.session_state.form_submitted:
 else:
     if 'receiveXYthread' not in st.session_state:
         st.session_state.receiveXYthread = True
-        thread = threading.Thread(target=getcode, args=(st.session_state.thread_queue,st.session_state.room_code,st.session_state.role))
+        thread = threading.Thread(target=getcode, args=(st.session_state.thread_queuegs, st.session_state.thread_queuegl, st.session_state.room_code,st.session_state.role))
         thread.start()
-        thread2 = threading.Thread(target=setcode, args=(st.session_state.thread_queue2,st.session_state.room_code,st.session_state.role))
+        thread2 = threading.Thread(target=setcode, args=(st.session_state.thread_queuess, st.session_state.thread_queuesl,st.session_state.room_code,st.session_state.role))
         thread2.start()
+    pqlistenstat()
     pqget()
-    props = {'epos': toXY(st.session_state.receiveXY) if st.session_state.receiveXY!="none" else "none", 'rid': st.session_state.room_code, 'role':st.session_state.role}
+    props = {'epos': toXY(st.session_state.receiveXY) if st.session_state.receiveXY!="none" else "none", 'rid': st.session_state.room_code, 'role':st.session_state.role,
+    "sets": st.session_state.sets, "gets": st.session_state.gets}
     value = fendfile(**props,key="123")
     pqset(value)
     st.write('Received from component: ', value)
+    if st.form_submit_button("Join Room"):
